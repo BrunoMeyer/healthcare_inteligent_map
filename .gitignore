@@ -1,0 +1,3 @@
+*.js
+*load_*_api.js
+js/*load_*_api.js
