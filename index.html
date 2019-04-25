@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<!--
+	MIT License
+
+	Copyright (c) 2019 Bruno Henrique Meyer
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy
+	of this software and associated documentation files (the "Software"), to deal
+	in the Software without restriction, including without limitation the rights
+	to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+	copies of the Software, and to permit persons to whom the Software is
+	furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all
+	copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+	SOFTWARE.
+!-->
+
+<html>
+  <head>
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <title>Place details</title>
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <link rel="stylesheet" href="https://unpkg.com/purecss@1.0.0/build/pure-min.css" integrity="sha384-nn4HPE8lTHyVtfCBi5yW9d20FjT8BJwUXyWZT9InLYax14RDjBj46LmSztkmNP9w" crossorigin="anonymous">
+
+    <!-- Latest compiled and minified CSS -->
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+
+<!-- Optional theme -->
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css" integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp" crossorigin="anonymous">
+
+<!-- Latest compiled and minified JavaScript -->
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+
+    <style>
+      
+		#map {
+			height: 100%;
+		}
+		/* Optional: Makes the sample page fill the window. */
+			html, body {
+			height: 100%;
+			margin: 0;
+			padding: 0;
+		}
+      
+		#addMarker{
+		  width:50px;
+		  height:50px;
+		}
+		#floating-panel {
+			position: absolute;
+			padding:3px;
+			right:10px;
+			width:20%;
+			top: 60px;
+			z-index: 5;
+			background-color: #fff;
+			padding: 5px;
+			border: 1px solid #999;
+			text-align: center;
+			font-family: 'Roboto','sans-serif';
+			line-height: 30px;
+			padding-left: 10px;
+		}
+		
+		#addMarker:hover {
+			cursor:pointer;
+			outline-width:1px;
+			outline-style:solid;
+			outline-color:blue;
+		}
+		#addMarker {
+			outline-width:0;
+			outline-style:solid;
+			outline-color:black;
+		}
+    </style>
+    
+    
+    <script src="https://www.gstatic.com/firebasejs/4.3.1/firebase.js"></script>
+	<script src="load_firebase_api.js"></script>
+
+    <script>
+		
+		var globalMap;
+		globalPoints = [];
+	    function criaArea(conjunto){
+			// Construct the polygon.
+			//console.log("rgb("+Math.floor(Math.random()*255)+","+Math.floor(Math.random()*255)+","+Math.floor(Math.random()*255)+")");
+			var bermudaTriangle = new google.maps.Polygon({
+			  paths: conjunto,
+			  strokeColor: '#FF0000',
+			  strokeOpacity: 0.8,
+			  strokeWeight: 2,
+			  fillColor: "rgb("+Math.floor(Math.random()*255)+","+Math.floor(Math.random()*255)+","+Math.floor(Math.random()*255)+")",
+			  fillOpacity: 0.35
+			});
+			bermudaTriangle.setMap(globalMap);
+			globalMap.setCenter(globalPoints[0]);
+			writeUserData(globalPoints);
+		}
+		
+		pessoas = [];
+		var areaNames = {
+			get : function (attr){
+				if(areaNames[attr] != undefined){
+					return areaNames[attr][0];
+				}
+				return 0;
+			}
+		};
+		
+		var microAreas = [];
+		function populeMap(csvLines){
+			
+			
+			
+			for(var i in csvLines){
+				
+				var microArea = csvLines[i][1];
+				var rua = csvLines[i][7];
+				var numero = csvLines[i][8];
+				var nome = csvLines[i][4];
+				var classificacao = csvLines[i][3];
+				var programa = csvLines[i][2];
+				var area = csvLines[i][1];
+				var ativa = csvLines[i][14] == "ATIVO";
+				
+				if(!microAreas.includes(microArea)){
+					microAreas.push(microArea);
+				}
+				
+				pessoas.push(
+					{
+						microArea:microArea,
+						rua:rua,
+						numero:numero,
+						nome:nome,
+						classificacao:classificacao.replace("\"",""),
+						programa:programa.replace("\"",""),
+						area:area,
+						ativa:ativa,
+						marker:null
+					}
+				);
+				areaNames[area] = [areaNames.get(area)+1,[]];
+				
+			}
+			
+			//~ for(var area in areaNames){
+				
+				//~ for(var i in pessoas){
+					//~ if(pessoas[i].area == area){
+						//~ pessoaMarker(i,area);
+					//~ }
+				//~ }
+				
+				
+			//~ }
+		}	
+		
+		
+		function searchPeoples(doenca,filtro){
+			console.log(pessoas[0][filtro]);
+			var numPeople = 0;
+			var ativos = $("#inputAtivos:checked").length == 1;
+			var inativos = $("#inputInativos:checked").length == 1;
+			for(var i in pessoas){
+				if(
+					pessoas[i][filtro] == doenca &&
+					(
+						(pessoas[i].ativa==true && ativos==true) ||
+						(pessoas[i].ativa==false && inativos==true)
+					)
+				){
+					pessoaMarker(i,pessoas[i].area);
+					numPeople++;
+				}
+			}
+		}
+		
+		function pessoaMarker(idPessoa,area){
+			addPoint(pessoas[idPessoa].rua +" "+pessoas[idPessoa].numero, areaNames[area][0] == parseInt(idPessoa)+1,areaNames[area], idPessoa, area);
+			//~ console.log(idPessoa, pessoas[idPessoa].nome);
+		}
+			
+        var cores = ["red","green","blue","purple","yellow","black","orange","pink","white"];
+	    function pinSymbol(color) {
+			return {
+				path: 'M 0,0 C -2,-20 -10,-22 -10,-30 A 10,10 0 1,1 10,-30 C 10,-22 2,-20 0,0 z M -2,-30 a 2,2 0 1,1 4,0 2,2 0 1,1 -4,0',
+				fillColor: color,
+				fillOpacity: 1,
+				strokeColor: '#000',
+				strokeWeight: 2,
+				scale: 1,
+		   };
+		}
+		function addPoint(address, ultimo, conjuntoArea, idPessoa, area){
+			
+			function createMarker(lat_long){
+				var cor = cores[microAreas.indexOf(pessoas[idPessoa].microArea)];
+				conjuntoArea[1].push(lat_long);
+				//~ console.log(idPessoa, pessoas[idPessoa].nome, " <<<<<<<<<< OK");
+				globalMap.setCenter(lat_long);
+				var marker = new google.maps.Marker({
+				  map: globalMap,
+				  position: lat_long,
+				  icon: pinSymbol( cor )
+				});
+				
+				(function(marker, idPessoa) {
+					// add click event
+					google.maps.event.addListener(marker, 'click', function() {
+						
+						var allContent = "";
+						for(i in pessoas){
+							if(pessoas[idPessoa].rua +" "+pessoas[idPessoa].numero == pessoas[i].rua +" "+pessoas[i].numero){
+								allContent+=pessoas[i].nome+": <u><i>"+pessoas[i].programa+"</i>: <b>"+pessoas[i].classificacao+"</b></u><br>";
+							}
+						}
+						
+						infowindow = new google.maps.InfoWindow({
+							content: allContent
+						});
+						infowindow.open(map, marker);
+					});
+				})(marker, idPessoa);
+				
+				if(conjuntoArea[1].length == conjuntoArea[0]){
+					;//console.log(conjuntoArea);
+					//~ criaArea(conjuntoArea[1]);
+				}
+				
+				pessoas[idPessoa].marker = marker;
+			  
+			  
+			}
+			
+			var geocoder = new google.maps.Geocoder();
+			
+			
+			
+			//~ console.log(idPessoa, address);
+			if(localStorage.getItem(address) != null){
+				createMarker(JSON.parse(localStorage.getItem(address)));
+			}
+			else{
+			geocoder.geocode({'address': address+" curitiba"}, function(results, status) {
+					//~ console.log(results[0].geometry.location.lat, results[0].geometry.location.lng);
+					if (status === 'OK') {
+						createMarker(results[0].geometry.location);
+						localStorage.setItem(address,JSON.stringify(results[0].geometry.location)); 
+						writeUserData(localStorage);
+					}
+					
+					if(status == "OVER_QUERY_LIMIT"){
+						setTimeout(
+							"pessoaMarker("+idPessoa+",'"+area+"');"
+							,1000
+						);
+						//~ console.log(idPessoa, pessoas[idPessoa].nome, " <<<<<<<<<< Fail");
+					}
+					
+					
+				});
+			}
+		}
+		
+		
+		var toAddMarker = false;
+		function initMap() {
+
+			var map = new google.maps.Map(document.getElementById('map'), {
+				center: {lat: -33.866, lng: 151.196},
+				zoom: 11,
+				draggableCursor: 'grab'
+			});
+			globalMap = map;
+			map.setCenter(new google.maps.LatLng(-25.5136773,-49.3135051));
+			
+			var DEFAULT_CURSOR = map.get("draggableCursor");
+			console.log(DEFAULT_CURSOR);
+			$("#addMarker").click(function(){
+				toAddMarker = !toAddMarker;
+				if(!toAddMarker){
+					map.set('draggableCursor', "grab");
+					$("#addMarker").css("outline-width",0);
+				}
+				else{
+					map.set('draggableCursor', "crosshair");
+					$("#addMarker").css("outline-width",1);
+				}
+			});
+			
+			function pinSymbolFeatures(color) {
+				return {
+					path: google.maps.SymbolPath.CIRCLE,
+					fillColor: color,
+					fillOpacity: 1,
+					strokeColor: '#000',
+					strokeWeight: 2,
+					scale: 7,
+			   };
+			}
+			google.maps.event.addListener(map, 'click', function(event) {
+				if(!toAddMarker)
+					return;
+				var lat_long = event.latLng;
+				var marker = new google.maps.Marker({
+					map: globalMap,
+					position: lat_long,
+					icon: pinSymbolFeatures($("#colorPicker").val())
+				});
+				
+				google.maps.event.addListener(marker,  'rightclick',  function(mouseEvent) {
+					if(!toAddMarker)
+						return;
+					this.setMap(null);
+				});
+			});
+			
+			var drawingManager = new google.maps.drawing.DrawingManager({
+				drawingControl: true,
+				drawingControlOptions: {
+					position: google.maps.ControlPosition.BOTTOM_CENTER,
+					drawingModes: ['polygon']
+				},
+			});
+			drawingManager.setMap(map);
+			google.maps.event.addListener(drawingManager, 'polygoncomplete', function(poly) {
+				google.maps.event.addListener(poly,  'rightclick',  function(mouseEvent) {
+					if(!toAddMarker)
+						return;
+					this.setMap(null);
+				});
+			});
+
+			
+			
+			
+			//~ $("#map").css("cursor","crosshair",10000);
+		}
+      
+	var userId = 2;
+	//~ var dados = firebase.database().ref('/users/' + userId).once('value').then(function(snapshot) {
+		//~ globalPoints = JSON.parse(snapshot.val().data);
+		//~ criaArea();
+	//~ });
+	
+	var dados = firebase.database().ref('/cache/').once('value').then(function(snapshot) {
+		console.log();
+		var newLS = JSON.parse(snapshot.val().data);
+		for(x in newLS){
+			localStorage[x] = newLS[x];
+		}
+	});
+    </script>
+  </head>
+  
+  
+  
+  
+  
+  <body>
+<!--
+	<input type=file onchange=load_data(this.files);>
+-->
+	
+    <div id="floating-panel">
+		<div class="alert alert-warning" role="alert">
+  			Atenção, este site é um protótipo desenvolvido para a disciplina MN127 da Universidade Federal do Paraná (2018/1). Para entrar em contato com o desenvolvedor, favor mandar email para bruno.h.meyer@outlook.com
+		</div>
+		<form class="pure-form" style="position:relative; width:100%; height:100%">
+			<input type="color" id="colorPicker" value="#00FF00" style="position:relative; top: -20px">
+			
+			<img id="addMarker" src="marker.png">
+			<input type="text" class="pure-input-rounded" placeholder="Buscar" id="search" style="position:relative;height:80%; top: -20%">
+						
+			<input type=file id="inputFile" style="position:relative;height:80%; top: -20%">
+			
+			<button onClick="resetMap();" style="position:relative;height:80%; top: -20%">Resetar</button>
+			
+			<br>
+			
+			Ativos<input id="inputAtivos" type=checkbox checked=1>
+			Inativos<input id="inputInativos" type=checkbox checked=1>
+		</form>
+    </div>
+    
+    <div id="map"></div>
+    
+    <script async defer src="load_googlemap_api.js"></script>
+  
+  
+  </body>
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <script lang="javascript" src="xlsx.js"></script>
+  <script lang="javascript" src="readxls.js"></script>
+  <script lang="javascript" src="awesomplete.js"></script>
+  <link rel="stylesheet" href="awesomplete.css" />
+  
+	<script>
+		function analisaTextoCsv(data){
+			
+			//~ console.log(data);
+			var lines = data.split("\n");
+			console.log(lines[2917]);
+			for(var l in lines){
+				
+				if(lines[l].split(",")[4] == "CARLA BIBIANO DA CRUZ"){
+					console.log("1");
+				}
+			}
+				
+			for(var l = 0; l < lines.length; l++){
+				lines[l] = lines[l].split(";");
+				
+				var emptyOnLine = false;
+				for(var i in lines[l]){
+					if(lines[l][i] == ""){
+						emptyOnLine = true;
+						break;
+					}
+				}
+				
+				if(lines[l].length == 1 || emptyOnLine){
+					lines.splice(l,1);
+					l--;
+				}
+				
+				
+			}
+			lines.splice(0,1); //Cabecario
+			//console.log(lines);
+
+			populeMap(lines);
+			
+			
+			var input = document.getElementById("search");
+			var awesomplete = new Awesomplete(input);
+			
+			
+			awesomplete.replace = function(text){
+				this.input.value = text;
+				
+				var valor = document.getElementById("search").value;
+				resetMap();
+				
+				searchPeoples(valor,"programa");	
+				searchPeoples(valor,"classificacao");	
+				searchPeoples(valor,"nome");
+
+				this.close();
+
+			};
+			
+			var auxHashClassificacao = {};
+			for(var i in pessoas){
+				if(!(pessoas[i].classificacao in auxHashClassificacao)){
+					auxHashClassificacao[pessoas[i].classificacao] = true;
+				}
+			}
+			var classificacoes = [];
+			for(var classificacao in auxHashClassificacao){
+				classificacoes.push(classificacao);
+			}
+		
+		
+		
+			var auxHashNome = {};
+			for(var i in pessoas){
+				if(!(pessoas[i].nome in auxHashNome)){
+					auxHashNome[pessoas[i].nome] = true;
+				}
+			}
+
+			var nomes = [];
+			for(var nome in auxHashNome){
+				nomes.push(nome);
+			}
+			
+			
+			
+			var auxHashPrograma = {};
+			for(var i in pessoas){
+				if(!(pessoas[i].programa in auxHashPrograma)){
+					auxHashPrograma[pessoas[i].programa] = true;
+				}
+			}
+
+			var programas = [];
+			for(var programa in auxHashPrograma){
+				programas.push(programa);
+			}
+			console.log(programas);
+			awesomplete.list = classificacoes.concat(nomes).concat(programas);
+			
+			
+
+		}
+		iniciaLeitor("inputFile", analisaTextoCsv);
+	  //~ function load_data(inputFiles){
+		//~ f = inputFiles[0];
+		//~ var reader = new FileReader();
+		
+		//~ reader.onload = (function(theFile) {
+			//~ return function(e) {
+				//~ var data = e.target.result;
+				
+			//~ }
+		//~ })(f);
+		
+		//~ reader.readAsText(f);
+
+		function resetMap(){
+			for(var i in pessoas){
+				if(pessoas[i].marker != null){
+					pessoas[i].marker.setMap(null);
+					pessoas[i].marker = null;
+				}
+			}
+		}
+	</script>
+</html>
