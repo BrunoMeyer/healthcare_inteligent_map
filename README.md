@@ -2,11 +2,7 @@
 
 ## Context of development
 
-This work was inittialy developed to MN127. An degree course offerted in 
-01/2018 of Universidade Federal do Paraná. This work was initially developed to MN127.
-An degree course offered in 2018/1 of Universidade Federal do Paraná.
-
-
+This work was initially developed to MN127. An degree course offered in 2018/1 of Universidade Federal do Paraná.
 The objective of this project was to prototype a tool that proccess and
 display the data collected from ESaude, a plataform that is used in basic healt unities in Curitiba.
 The data model was designed to collect the report collected from ESaude. There is an example in `data/example.xls` 
