@@ -17,6 +17,8 @@ There is no need for an centralized service. We use essentially the
 api. The user must upload an report spreadsheet into html page, and it will
 proccess the data only in the user computer.
 
+To use this project, you must change the files `js/load_firebase_api`, and
+`js/load_googlemap_api.js` and define the keys and configurations of these api.
 
 However, we use the google api and firebase to store and execute queries
 related to a function that found an geolocalization from a address.

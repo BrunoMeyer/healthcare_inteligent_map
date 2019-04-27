@@ -1,6 +1,6 @@
 // Initialize Firebase
 var config = {
-  apiKey: "YOUR_KEAY",
+  apiKey: "YOUR_KEY",
   authDomain: "yourdomain.firebaseapp.com",
   databaseURL: "https://yoururl.firebaseio.com",
   projectId: "your_project_id",
